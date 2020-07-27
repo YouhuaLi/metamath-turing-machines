@@ -59,7 +59,7 @@ proc ackermann(m, n){
           push(wstack, t2);
           
           m = m + 1;
-          t2= m + 1;
+          t2 = m + 1;
           push(wstack, t2);
 
           n = n - 1;
@@ -75,8 +75,10 @@ global n;
 proc main() {
     init_stack(wstack);
 
-    m = 1;
-    n = 1;
+    n = 5;
+    m = n;
+    ackermann(m, n);
+    m = n;
     ackermann(m, n);
     return;
 }
