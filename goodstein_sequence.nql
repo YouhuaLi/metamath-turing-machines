@@ -3,10 +3,10 @@
 /* t0 and t1 clobbered by pairing, also use t0 as blackhole a la MIPS */
 global t0;
 global t1;
-global t2; 
+global t2;
+global t3;
 global wstack;
 
-/* NB If you change the pairing function, check the micro-optimisation in main() */
 proc pair(out, in1, in2) {
     t0 = in1 + in2;
     out = in2 + (t0 * (t0 + 1)) / 2;
@@ -26,102 +26,121 @@ proc unpair(out1, out2, in) {
 }
 
 
-proc push(stack, var) { pair(stack, var, stack); }
-proc pop(var, stack) { unpair(var, stack, stack); }
+proc push(stack, var) { t0 = var + 1; pair(stack, t0, stack); }
+proc pop(var, stack) { unpair(var, stack, stack); var = var - 1;}
 
 
-/* initialize a stack by pushing 0 into it */
-proc init_stack(stack) { t2 = 0; push(stack, t2); }
+/* initialize a stack by set it to be 0 */
+proc init_stack(stack) { stack = 0; }
 
-/* if stack is empty, out = 0, otherwise, out > 0 */
-proc is_empty(wstack, out) {
-    pop(out, wstack);
-    push(wstack, out);
+proc incr(x) {
+    x = x + 1;
+}
+
+proc decr(x) {
+    x = x - 1;
 }
 
 /* return log=floor(log_{base}{value}) with reaminder = value-base^log */
 proc log_with_remainder(value, base, log, remainder){
     log = 0;
     remainder = 0;
-    q = base;
+    t0 = base;
 
-    while (q <= value) {
-        q = base * q;
-        log = log + 1;
+    while (t0 <= value) {
+        t0 = base * t0;
+        incr(log);
     }
-    remainder = value - q;
+    remainder = value - t0 / base;
 }
 
  /* return p=x^y */
 proc x_power_y(x, y, p) {
-    i = 0;
     p = 1;
-    while (i < y) {
+    while (y > 0) {
         p = p * x;
-        i = i + 1;
+        y = y - 1;
     }
 }
 
-proc stein_none_rescursive(n,d,s){
-    s = 0;
+proc stein_none_rescursive(n, d, s){
     flag_log_phase = 1;
     r = n;
     last_s = 0;
+    init_stack(wstack);
     push(wstack, r);
-    push(wstack, s);
+    push(wstack, last_s);
     
-    is_empty(wstack, t2);
-    while (t2 > 0) {
+    while (wstack > 0) {
     	pop(s, wstack);
     	pop(r, wstack);
 
         if (flag_log_phase == 1) {
             n = r;
             while (n > 0) {
-            	log_with_remainder(n, d, n, r);
-            	push(wstack, r);
-            	r=0;
-            	push(wstack, r);
+            	log_with_remainder(n, d, t2, t3);
+            	push(wstack, t3);
+            	t3 = 0;
+            	push(wstack, t3);
+                n = t2;
             }
             flag_log_phase = 0;
             last_s = 0;
-        } elsif(s==0) {
+        } elsif (s == 0) {
                 s = last_s; 
                 if (r < d){
-                    x_power_y(d, s, s);
-                    s = s + r;
-                    /*s = (d+1) ** s + r;*/
+                    /* s = (d+1) ** s + r; */
+                    t3 = d + 1; 
+                    x_power_y(t3, s, t2);
+                    s = t2 + r;
+                    /* l.append((r, s)); */
                     push(wstack, r);
                     push(wstack, s);
-                    /*l.append((r, s));*/
                     last_s = 0;
                 }
-                else{   
-                    x_power_y(d, s, s);
+                else{  
+                    /*s = (d+1) ** s; */
+                    t3 = d + 1;
+                    x_power_y(t3, s, t2);
+                    s = t2;
+                    /*
+                      l.append((r, s));
+                      l.append((r, 0));
+                    */
                     push(wstack, r);
                     push(wstack, s);
-                    /*s = (d+1) ** s;
-                    l.append((r, s));
-                    l.append((r, 0));*/
+                    push(wstack, r);
+                    t3 = 0;
+                    push(wstack, t3);
                     flag_log_phase = 1;
                 }
             }
             else {
-                s = s+last_s;
+                s = s + last_s;
                 last_s = s;
             }
     }
-    s = s - 1;
+    /* there is no negative value in nql. if s=0, s-1=0.*/
+    s = s - 1; 
 }
 
 proc main() {
-    n = 128;
+    n = 947;
     base = 2;
     s = 1;
-    while(s>0){
+    while( s > 0 ){
         stein_none_rescursive(n, base, s);
-        base = base + 1;
+        incr(base);
         n = s;
     }
     return;
 }
+
+/* uncomment below if you want to see the machine can halt.
+proc main() {
+    n = 1;
+    base = 2;
+    s = 0;
+    stein_none_rescursive(n, base, s);
+    return;
+} */
